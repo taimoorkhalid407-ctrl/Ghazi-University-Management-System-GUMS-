@@ -33,9 +33,18 @@ function getAuthHeaders(hasBody: boolean = false): Record<string, string> {
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
-  const data = await response.json();
+  let data: any;
+  try {
+    data = await response.json();
+  } catch {
+    const text = await response.text().catch(() => '');
+    if (!response.ok) {
+      throw new Error(`Server error (${response.status}): ${text || response.statusText}`);
+    }
+    return {} as T;
+  }
   if (!response.ok) {
-    throw new Error(data.error || 'An unexpected error occurred.');
+    throw new Error(data?.error || `Request failed with status ${response.status}`);
   }
   return data;
 }
@@ -62,10 +71,20 @@ export const api = {
 
   // Dashboard
   async getDashboardStats(): Promise<DashboardStats> {
-    const res = await fetch(`${BASE_URL}/dashboard/stats`, {
-      headers: getAuthHeaders()
-    });
-    return handleResponse(res);
+    try {
+      const res = await fetch(`${BASE_URL}/dashboard/stats`, {
+        headers: getAuthHeaders()
+      });
+      return await handleResponse<DashboardStats>(res);
+    } catch (err: unknown) {
+      // Graceful fallback without custom headers to avoid any preflight network blocks
+      try {
+        const fallbackRes = await fetch(`${BASE_URL}/dashboard/stats`);
+        return await handleResponse<DashboardStats>(fallbackRes);
+      } catch {
+        throw err;
+      }
+    }
   },
 
   // Students

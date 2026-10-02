@@ -43,17 +43,26 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchStats = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await api.getDashboardStats();
-      setStats(data);
-    } catch (err: unknown) {
-      console.error('Failed to load stats:', err);
-      setError(err instanceof Error ? err.message : 'Unable to load statistics.');
-    } finally {
-      setLoading(false);
-    }
+    let retries = 0;
+    const execute = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await api.getDashboardStats();
+        setStats(data);
+      } catch (err: unknown) {
+        console.error('Failed to load stats:', err);
+        if (retries < 2) {
+          retries++;
+          setTimeout(execute, 1000);
+          return;
+        }
+        setError(err instanceof Error ? err.message : 'Unable to load statistics.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    await execute();
   };
 
   useEffect(() => {

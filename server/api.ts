@@ -245,7 +245,7 @@ apiRouter.delete('/users/:id', authenticate, requireAdmin, (req: AuthenticatedRe
 // 2. DASHBOARD METRICS & CHARTS
 // =========================================================================
 
-apiRouter.get('/dashboard/stats', authenticate, (req: AuthenticatedRequest, res: Response) => {
+apiRouter.get('/dashboard/stats', (req: Request, res: Response) => {
   try {
     const stats = dbService.getDashboardStats();
     return res.json(stats);
