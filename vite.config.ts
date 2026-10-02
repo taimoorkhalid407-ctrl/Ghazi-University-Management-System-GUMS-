@@ -6,7 +6,7 @@ import { app } from './server/app.ts';
 
 export default defineConfig(() => {
   return {
-    base:"Ghazi-University-Management-System-GUMS",
+    base:"Ghazi-University-Management-System-GUMS-",
 
     plugins: [
       react(),
