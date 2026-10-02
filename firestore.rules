@@ -1,0 +1,255 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // 1. GLOBAL SAFETY NET (Default Deny)
+    // =========================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // 2. AUTHENTICATION & ROLE-BASED ACCESS CONTROL (RBAC) HELPERS
+    // =========================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // User Profile Document Resolution
+    function hasUserDoc() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // 1. Administrator: Full Authorized Access
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (hasUserDoc() && ('role' in getUserData()) && getUserData().role == 'admin') ||
+        (request.auth.token.email != null && request.auth.token.email == 'admin@gu.edu.pk')
+      );
+    }
+
+    // 2. Teacher: Academic Operations Authority
+    function isTeacher() {
+      return isSignedIn() && hasUserDoc() && ('role' in getUserData()) && getUserData().role == 'teacher';
+    }
+
+    // 3. Student: Self Academic Data Access Only
+    function isStudent() {
+      return isSignedIn() && hasUserDoc() && ('role' in getUserData()) && getUserData().role == 'student';
+    }
+
+    function getStudentId() {
+      return (hasUserDoc() && ('studentId' in getUserData())) ? getUserData().studentId : '';
+    }
+
+    function getFacultyId() {
+      return (hasUserDoc() && ('facultyId' in getUserData())) ? getUserData().facultyId : '';
+    }
+
+    // =========================================================================
+    // 3. USERS COLLECTION (Account Management & Anti-Privilege Escalation)
+    // =========================================================================
+    match /users/{userId} {
+      // Individual record: Only user themselves or administrator
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Full listing: Admin only (prevents enumeration of academic users)
+      allow list: if isAdmin();
+
+      // Anti-Privilege Escalation:
+      // Admins can create any user account.
+      // Self-registration is strictly restricted to role 'student' with no facultyId
+      allow create: if isAdmin() || (
+        isSignedIn() &&
+        request.auth.uid == userId &&
+        incoming().role == 'student' &&
+        !('facultyId' in incoming())
+      );
+
+      // Updates:
+      // Admins have full update permissions.
+      // Non-admins can only update their own non-sensitive profile attributes ('name', 'avatar').
+      // They CANNOT alter 'role', 'studentId', 'facultyId', or 'email'.
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        request.auth.uid == userId &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar'])
+      );
+
+      // Deletion: Admin only, protecting root university administrator
+      allow delete: if isAdmin() && userId != 'usr-admin';
+    }
+
+    // =========================================================================
+    // 4. STUDENTS COLLECTION (PII Protection: CNIC, Phone, Address, Father's Name)
+    // =========================================================================
+    match /students/{studentId} {
+      // Direct Read (get):
+      // - Admin & Teacher can inspect student records for academic operations.
+      // - Students can ONLY read their own record (matched by ID or university email).
+      // - Prevents accessing another student's private information!
+      allow get: if isSignedIn() && isValidId(studentId) && (
+        isAdmin() ||
+        isTeacher() ||
+        (isStudent() && (existing().id == getStudentId() || existing().email == request.auth.token.email))
+      );
+
+      // Query Listing (list):
+      // - Admin & Teacher can list academic student rosters.
+      // - Students can ONLY query their own single record (prevents bulk scraping of peer PII).
+      allow list: if isSignedIn() && (
+        isAdmin() ||
+        isTeacher() ||
+        (isStudent() && (resource.data.studentId == getStudentId() || resource.data.email == request.auth.token.email))
+      );
+
+      // Mutations (Create, Update, Delete):
+      // Strictly reserved for authorized University Administrators.
+      // Students and faculty cannot forge or modify academic registry documents.
+      allow create: if isAdmin() && isValidId(studentId);
+      allow update: if isAdmin() && isValidId(studentId);
+      allow delete: if isAdmin() && isValidId(studentId);
+    }
+
+    // =========================================================================
+    // 5. DEPARTMENTS COLLECTION
+    // =========================================================================
+    match /departments/{departmentId} {
+      // Academic departments readable by all authenticated university community members
+      allow read: if isSignedIn() && isValidId(departmentId);
+      // Department creation, renaming, and removal restricted to Admin
+      allow create, update, delete: if isAdmin() && isValidId(departmentId);
+    }
+
+    // =========================================================================
+    // 6. FACULTY COLLECTION
+    // =========================================================================
+    match /faculty/{facultyId} {
+      // Faculty profiles readable by all authenticated campus members
+      allow read: if isSignedIn() && isValidId(facultyId);
+      // Faculty hiring, designation changes, and dismissal restricted to Admin
+      allow create, update, delete: if isAdmin() && isValidId(facultyId);
+    }
+
+    // =========================================================================
+    // 7. COURSES COLLECTION
+    // =========================================================================
+    match /courses/{courseId} {
+      // Course catalog and syllabi readable by all authenticated members
+      allow read: if isSignedIn() && isValidId(courseId);
+      // Course offerings and curriculum modifications restricted to Admin
+      allow create, update, delete: if isAdmin() && isValidId(courseId);
+    }
+
+    // =========================================================================
+    // 8. ENROLLMENTS COLLECTION
+    // =========================================================================
+    match /enrollments/{enrollmentId} {
+      // - Admin & Teacher can inspect course enrollments.
+      // - Students can ONLY view their own enrollments.
+      allow get: if isSignedIn() && isValidId(enrollmentId) && (
+        isAdmin() ||
+        isTeacher() ||
+        (isStudent() && existing().studentId == getStudentId())
+      );
+      allow list: if isSignedIn() && (
+        isAdmin() ||
+        isTeacher() ||
+        (isStudent() && resource.data.studentId == getStudentId())
+      );
+
+      // Course registration & drops are authorized exclusively by Admin
+      allow create, update, delete: if isAdmin() && isValidId(enrollmentId);
+    }
+
+    // =========================================================================
+    // 9. ATTENDANCE COLLECTION
+    // =========================================================================
+    match /attendance/{attendanceId} {
+      // - Admin & Teacher can review class attendance registers.
+      // - Students can ONLY view their own attendance records.
+      allow get: if isSignedIn() && isValidId(attendanceId) && (
+        isAdmin() ||
+        isTeacher() ||
+        (isStudent() && existing().studentId == getStudentId())
+      );
+      allow list: if isSignedIn() && (
+        isAdmin() ||
+        isTeacher() ||
+        (isStudent() && resource.data.studentId == getStudentId())
+      );
+
+      // Academic Operation:
+      // Admin and Teacher can record and update attendance with valid statuses.
+      // Students are STRICTLY FORBIDDEN from marking or modifying attendance!
+      allow create: if isSignedIn() && isValidId(attendanceId) &&
+        (isAdmin() || isTeacher()) &&
+        incoming().status in ['Present', 'Absent', 'Late'];
+
+      allow update: if isSignedIn() && isValidId(attendanceId) &&
+        (isAdmin() || isTeacher()) &&
+        incoming().status in ['Present', 'Absent', 'Late'];
+
+      // Deletion of attendance logs is restricted exclusively to Admin
+      allow delete: if isAdmin() && isValidId(attendanceId);
+    }
+
+    // =========================================================================
+    // 10. MARKS & RESULTS COLLECTION
+    // =========================================================================
+    match /marks/{markId} {
+      // - Admin & Teacher can access student grade books.
+      // - Students can ONLY access their own marks and transcripts.
+      allow get: if isSignedIn() && isValidId(markId) && (
+        isAdmin() ||
+        isTeacher() ||
+        (isStudent() && existing().studentId == getStudentId())
+      );
+      allow list: if isSignedIn() && (
+        isAdmin() ||
+        isTeacher() ||
+        (isStudent() && resource.data.studentId == getStudentId())
+      );
+
+      // Academic Operation:
+      // Admin and Teacher can submit and revise grades within standardized grading bounds.
+      // Students are STRICTLY FORBIDDEN from modifying or submitting marks!
+      allow create: if isSignedIn() && isValidId(markId) &&
+        (isAdmin() || isTeacher()) &&
+        incoming().quizMarks >= 0 && incoming().quizMarks <= 15 &&
+        incoming().assignmentMarks >= 0 && incoming().assignmentMarks <= 10 &&
+        incoming().midtermMarks >= 0 && incoming().midtermMarks <= 25 &&
+        incoming().finalMarks >= 0 && incoming().finalMarks <= 40 &&
+        incoming().practicalMarks >= 0 && incoming().practicalMarks <= 10;
+
+      allow update: if isSignedIn() && isValidId(markId) &&
+        (isAdmin() || isTeacher()) &&
+        incoming().quizMarks >= 0 && incoming().quizMarks <= 15 &&
+        incoming().assignmentMarks >= 0 && incoming().assignmentMarks <= 10 &&
+        incoming().midtermMarks >= 0 && incoming().midtermMarks <= 25 &&
+        incoming().finalMarks >= 0 && incoming().finalMarks <= 40 &&
+        incoming().practicalMarks >= 0 && incoming().practicalMarks <= 10;
+
+      // Deletion of submitted academic transcripts is restricted exclusively to Admin
+      allow delete: if isAdmin() && isValidId(markId);
+    }
+  }
+}

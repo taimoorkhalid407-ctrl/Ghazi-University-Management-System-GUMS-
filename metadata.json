@@ -1,0 +1,6 @@
+{
+  "name": "Ghazi University Management System (GUMS)",
+  "description": "Comprehensive academic management ERP for Ghazi University, Dera Ghazi Khan. Features real-time student, faculty, department, course, enrollment, attendance, and grading records.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,193 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System authentication and authorization profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "format": "email", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "role": { "type": "string", "enum": ["admin", "teacher", "student"] },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "facultyId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "email", "name", "role"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student academic and personal profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 32 },
+        "rollNumber": { "type": "string", "maxLength": 32 },
+        "firstName": { "type": "string", "maxLength": 64 },
+        "lastName": { "type": "string", "maxLength": 64 },
+        "fatherName": { "type": "string", "maxLength": 64 },
+        "gender": { "type": "string", "enum": ["Male", "Female", "Other"] },
+        "dateOfBirth": { "type": "string", "maxLength": 32 },
+        "cnic": { "type": "string", "pattern": "^\\d{5}-\\d{7}-\\d{1}$", "maxLength": 32 },
+        "email": { "type": "string", "format": "email", "maxLength": 128 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "address": { "type": "string", "maxLength": 256 },
+        "city": { "type": "string", "maxLength": 64 },
+        "province": { "type": "string", "maxLength": 64 },
+        "departmentId": { "type": "string", "maxLength": 128 },
+        "program": { "type": "string", "maxLength": 64 },
+        "semester": { "type": "number" },
+        "section": { "type": "string", "maxLength": 16 },
+        "admissionDate": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["Active", "Inactive", "Suspended", "Graduated"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["rollNumber", "firstName", "lastName", "fatherName", "email", "departmentId", "program", "semester"]
+    },
+    "Department": {
+      "title": "Department",
+      "description": "Academic department or faculty",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "departmentId": { "type": "string", "maxLength": 32 },
+        "departmentCode": { "type": "string", "maxLength": 16 },
+        "departmentName": { "type": "string", "maxLength": 128 },
+        "hodName": { "type": "string", "maxLength": 64 },
+        "email": { "type": "string", "format": "email", "maxLength": 128 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "description": { "type": "string", "maxLength": 512 }
+      },
+      "required": ["departmentCode", "departmentName", "hodName", "email", "status"]
+    },
+    "Faculty": {
+      "title": "Faculty",
+      "description": "Academic instructional staff",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "facultyId": { "type": "string", "maxLength": 32 },
+        "employeeId": { "type": "string", "maxLength": 32 },
+        "firstName": { "type": "string", "maxLength": 64 },
+        "lastName": { "type": "string", "maxLength": 64 },
+        "fatherName": { "type": "string", "maxLength": 64 },
+        "email": { "type": "string", "format": "email", "maxLength": 128 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "designation": { "type": "string", "enum": ["Professor", "Associate Professor", "Assistant Professor", "Lecturer", "Visiting Lecturer"] },
+        "departmentId": { "type": "string", "maxLength": 128 },
+        "qualification": { "type": "string", "maxLength": 128 },
+        "joiningDate": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["Active", "On Leave", "Resigned"] }
+      },
+      "required": ["employeeId", "firstName", "lastName", "email", "designation", "departmentId"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Academic syllabus course",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "courseId": { "type": "string", "maxLength": 32 },
+        "courseCode": { "type": "string", "maxLength": 16 },
+        "courseName": { "type": "string", "maxLength": 128 },
+        "creditHours": { "type": "number" },
+        "departmentId": { "type": "string", "maxLength": 128 },
+        "semester": { "type": "number" },
+        "teacherId": { "type": "string", "maxLength": 128 },
+        "description": { "type": "string", "maxLength": 512 },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] }
+      },
+      "required": ["courseCode", "courseName", "creditHours", "departmentId", "semester", "status"]
+    },
+    "Enrollment": {
+      "title": "Enrollment",
+      "description": "Student course registration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "enrollmentId": { "type": "string", "maxLength": 32 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "semester": { "type": "number" },
+        "academicYear": { "type": "string", "maxLength": 32 },
+        "enrollmentDate": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["Enrolled", "Dropped", "Completed"] }
+      },
+      "required": ["studentId", "courseId", "semester", "status"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily lecture student attendance record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "attendanceId": { "type": "string", "maxLength": 32 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 32 },
+        "status": { "type": "string", "enum": ["Present", "Absent", "Late"] },
+        "markedBy": { "type": "string", "maxLength": 64 },
+        "remarks": { "type": "string", "maxLength": 256 }
+      },
+      "required": ["studentId", "courseId", "date", "status", "markedBy"]
+    },
+    "MarkRecord": {
+      "title": "MarkRecord",
+      "description": "Student examination performance record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "markId": { "type": "string", "maxLength": 32 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "quizMarks": { "type": "number" },
+        "assignmentMarks": { "type": "number" },
+        "midtermMarks": { "type": "number" },
+        "finalMarks": { "type": "number" },
+        "practicalMarks": { "type": "number" },
+        "totalMarks": { "type": "number" },
+        "percentage": { "type": "number" },
+        "grade": { "type": "string", "maxLength": 8 },
+        "gpa": { "type": "number" },
+        "academicSemester": { "type": "string", "maxLength": 32 }
+      },
+      "required": ["studentId", "courseId", "quizMarks", "assignmentMarks", "midtermMarks", "finalMarks", "totalMarks", "grade", "gpa"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "User login accounts and role assignments"
+    },
+    "/students/{studentId}": {
+      "schema": { "$ref": "Student" },
+      "description": "Student academic dossiers and personal information"
+    },
+    "/departments/{departmentId}": {
+      "schema": { "$ref": "Department" },
+      "description": "Academic faculty departments"
+    },
+    "/faculty/{facultyId}": {
+      "schema": { "$ref": "Faculty" },
+      "description": "Faculty instructors and professors"
+    },
+    "/courses/{courseId}": {
+      "schema": { "$ref": "Course" },
+      "description": "Curriculum course registry"
+    },
+    "/enrollments/{enrollmentId}": {
+      "schema": { "$ref": "Enrollment" },
+      "description": "Student registrations in courses"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": { "$ref": "AttendanceRecord" },
+      "description": "Class session attendance"
+    },
+    "/marks/{markId}": {
+      "schema": { "$ref": "MarkRecord" },
+      "description": "Semester examination marks and transcripts"
+    }
+  }
+}
